@@ -3,17 +3,27 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 LABEL fly_launch_runtime="Node.js"
 RUN corepack enable
+
+RUN mkdir -p /app
 COPY . /app
 WORKDIR /app
 
+# 对于容器镜像，从 Debian 12 开始，其软件源配置文件变更为 DEB822 格式，路径为 /etc/apt/sources.list.d/debian.sources。一般情况下，将对应文件中 Debian 默认的源地址 http://deb.debian.org/ 替换为镜像地址即可。
+RUN sed -i "s@http://deb.debian.org@http://mirrors.aliyun.com@g" /etc/apt/sources.list.d/debian.sources
+
+RUN echo "registry=http://registry.npmmirror.com/" > ~/.npmrc
+# RUN pnpm config set registry http://registry.npmmirror.com/
+# RUN pnpm config get registry
+
 FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store npm install --prod --frozen-lockfile
 
 FROM base AS build
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store npm install --frozen-lockfile
 
 RUN apt-get update -qq && apt-get install -y ca-certificates && update-ca-certificates
-RUN pnpm install
+
+RUN npm install
 RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN \
     bash -c 'export SENTRY_AUTH_TOKEN="$(cat /run/secrets/SENTRY_AUTH_TOKEN)"; if [ -z $SENTRY_AUTH_TOKEN ]; then pnpm run build:nosentry; else pnpm run build; fi'
 
