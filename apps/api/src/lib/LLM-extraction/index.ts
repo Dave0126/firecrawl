@@ -13,6 +13,9 @@ export async function generateCompletions(
   mode: "markdown" | "raw-html"
 ): Promise<Document[]> {
   // const schema = zodToJsonSchema(options.schema)
+  // Logger.debug(`Document: ${JSON.stringify(documents)}`);
+  // Logger.debug(`Extraction: ${JSON.stringify(extractionOptions)}`);
+  // Logger.debug(`Mode: ${JSON.stringify(mode)}`);
 
   const schema = extractionOptions.extractionSchema;
   const systemPrompt = extractionOptions.extractionPrompt;
@@ -24,7 +27,10 @@ export async function generateCompletions(
     documents.map(async (document: Document) => {
       switch (switchVariable) {
         case "openAI":
-          const llm = new OpenAI();
+          const llm = new OpenAI({
+            baseURL: process.env.OPENAI_API_URL || "",
+            apiKey: process.env.OPENAI_API_KEY || "OPENAI_API_KEY_MISSED", // required but unused
+          });
           try {
             const completionResult = await generateOpenAICompletions({
               client: llm,

@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { Document } from "../../lib/entities";
 import { numTokensFromString } from "./helpers";
+import { Logger } from "../logger";
 
 export type ScraperCompletionResult = {
   data: any | null;
@@ -44,7 +45,7 @@ function prepareOpenAIDoc(
 
 export async function generateOpenAICompletions({
   client,
-  model = process.env.MODEL_NAME || "gpt-4o-mini",
+  model = process.env.OPENAI_MODEL_NAME || "gemma:7b",
   document,
   schema, //TODO - add zod dynamic type checking
   systemPrompt = defaultPrompt,
@@ -76,6 +77,9 @@ export async function generateOpenAICompletions({
   let completion;
   let llmExtraction;
   if (prompt && !schema) {
+    // Logger.debug(`system: ${systemPrompt}`)
+    Logger.debug(`content: ${JSON.stringify(content)}`)
+    // Logger.debug(`userPrompt: ${prompt}`)
     const jsonCompletion = await openai.chat.completions.create({
       model,
       messages: [
@@ -83,15 +87,20 @@ export async function generateOpenAICompletions({
           role: "system",
           content: systemPrompt,
         },
-        { role: "user", content },
+        // { 
+        //   role: "user",
+        //   content: JSON.stringify(content) 
+        // },
         {
           role: "user",
-          content: `Transform the above content into structured json output based on the following user request: ${prompt}`,
+          content: `Content:${JSON.stringify(content)}.\n\nTransform the above content into structured json output based on the following user request: ${prompt}`,
         },
       ],
       response_format: { type: "json_object" },
       temperature,
     });
+
+    Logger.debug(JSON.stringify(jsonCompletion));
 
     try {
       llmExtraction = JSON.parse(
